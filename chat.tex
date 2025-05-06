@@ -1,0 +1,166 @@
+% -----------------------------------------------------------------------------
+% Relatorio_Entrega1.tex – Primeira Entrega Parcial
+% Laboratório de Kubernetes & Istio
+% -----------------------------------------------------------------------------
+\documentclass[12pt,a4paper]{report}
+
+% ---------------------------- Pacotes ----------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{minted}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+% --------------------------- Metadados ---------------------------------------
+\title{Relatório – Primeira Entrega Parcial\\Laboratório de Kubernetes & Istio}
+\author{Jonas de Araújo Luz Junior\\\small{Instituição: TRE/CE}}
+\date{\today}
+
+% ---------------------------- Documento --------------------------------------
+\begin{document}
+
+\maketitle
+\tableofcontents
+\clearpage
+
+% -----------------------------------------------------------------------------
+\chapter{Contexto Geral}
+Este relatório descreve a execução da \textbf{Primeira Entrega Parcial} do trabalho
+prático proposto no Laboratório de Sistemas Distribuídos, cujo objetivo é
+provisionar um cluster Kubernetes local, instalar o service‑mesh Istio e
+implantar a aplicação de micro‑serviços \emph{Online Boutique}.
+
+% -----------------------------------------------------------------------------
+\chapter{Repositório Git}
+\begin{itemize}[leftmargin=*]
+  \item Repositório oficial do projeto (código, manifestos, evidências):\\
+  \url{https://github.com/jonasluz/DIA.kubernetes-istio/tree/main}
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\chapter{Ambiente de Trabalho}
+\begin{description}[leftmargin=1.5cm]
+  \item[Sistema] Fedora 41 (x86\_64) atualizado em \today.
+  \item[Recursos] 8 GB RAM, 4 vCPU, 60 GB SSD.
+  \item[Container Runtime] Docker \texttt{24.x} (moby‑engine)\footnote{Instalação descrita no Capítulo~\ref{chap:passoapasso}.}
+  \item[Cluster] Minikube \texttt{v1.35.0} com Kubernetes \texttt{v1.32.0}.
+  \item[Istio] \texttt{1.22.0} (perfil \texttt{demo}).
+\end{description}
+
+% -----------------------------------------------------------------------------
+\chapter{Passo a Passo da Instalação}
+\label{chap:passoapasso}
+Os comandos abaixo foram executados sequencialmente em shell \texttt{bash}. Cada
+etapa inclui uma breve explicação e um espaço reservado para evidência (log ou
+captura de tela).
+
+\section{Atualização do Sistema}
+\begin{enumerate}[label=\arabic*.]
+  \item \textbf{Atualizar pacotes e utilitários básicos}
+\begin{minted}[fontsize=\small]{bash}
+sudo dnf upgrade --refresh -y && sudo reboot
+after reboot:
+sudo dnf install -y curl wget git conntrack jq
+author
+\end{minted}
+\textit{Evidência:} incluir saída de \texttt{dnf upgrade}.\\
+\vspace{3cm}
+\end{enumerate}
+
+\section{Instalação do Docker}
+\begin{enumerate}[label=\arabic*.]
+\item\textbf{Adicionar repositório Docker CE e instalar runtime}
+\begin{minted}[fontsize=\small]{bash}
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --add-repo \
+  https://download.docker.com/linux/fedora/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io \
+  docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $(whoami)
+\end{minted}
+\textit{Evidência:} saída de \texttt{docker --version}.\\
+\vspace{3cm}
+\end{enumerate}
+
+\section{Instalação do kubectl}
+\begin{enumerate}[label=\arabic*.]
+\item\textbf{Baixar binário compatível (v1.32.0)}
+\begin{minted}[fontsize=\small]{bash}
+curl -LO https://dl.k8s.io/release/v1.32.0/bin/linux/amd64/kubectl
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/
+rm kubectl
+\end{minted}
+\textit{Evidência:} saída de \texttt{kubectl version --client}.\\
+\vspace{2cm}
+\end{enumerate}
+
+\section{Instalação do Minikube}
+\begin{enumerate}[label=\arabic*.]
+\item\textbf{Baixar Minikube v1.35.0}
+\begin{minted}[fontsize=\small]{bash}
+curl -LO https://github.com/kubernetes/minikube/releases/download/v1.35.0/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+rm minikube-linux-amd64
+\end{minted}
+\item\textbf{Inicializar cluster (driver Docker)}
+\begin{minted}[fontsize=\small]{bash}
+minikube start --driver=docker --cpus=4 --memory=8192
+\end{minted}
+\textit{Evidência:} saída de \texttt{minikube status} e \texttt{kubectl get nodes}.\\
+\vspace{2cm}
+\end{enumerate}
+
+\section{Instalação do Istio}
+\begin{enumerate}[label=\arabic*.]
+\item\textbf{Download e instalação do Istioctl 1.22.0}
+\begin{minted}[fontsize=\small]{bash}
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=1.22.0 sh -
+export PATH="$PATH:$HOME/istio-1.22.0/bin"
+# opcional: echo no ~/.bashrc
+istioctl install --set profile=demo -y
+istioctl verify-install
+\end{minted}
+\textit{Evidência:} lista de pods em \texttt{istio-system}.\\
+\vspace{2cm}
+\end{enumerate}
+
+\section{Implantação da Online Boutique}
+\begin{enumerate}[label=\arabic*.]
+\item\textbf{Clonar repositório e implantar namespace \texttt{boutique-base}}
+\begin{minted}[fontsize=\small]{bash}
+git clone --depth 1 https://github.com/GoogleCloudPlatform/microservices-demo.git
+kubectl create namespace boutique-base
+kubectl apply -f microservices-demo/release/kubernetes-manifests.yaml -n boutique-base
+\end{minted}
+\item\textbf{Implantar versão com sidecars Istio (\texttt{boutique-istio})}
+\begin{minted}[fontsize=\small]{bash}
+kubectl create namespace boutique-istio
+kubectl label namespace boutique-istio istio-injection=enabled
+kubectl apply -f microservices-demo/release/kubernetes-manifests.yaml -n boutique-istio
+\end{minted}
+\textit{Evidência:} pods 2/2 containers.\\
+\vspace{2cm}
+\end{enumerate}
+
+% -----------------------------------------------------------------------------
+\chapter{Problemas Encontrados e Soluções}
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Driver Podman rootless instável}: optou‑se pelo \emph{driver Docker}, que funcionou sem ajustes extras.
+  \item \textbf{Aviso de versão do kubectl}: resolvido instalando binário 1.32.
+  \item Outros problemas menores foram documentados no repositório.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\chapter{Conclusão}
+A primeira entrega foi concluída com êxito: cluster Kubernetes funcional em
+Minikube, Istio instalado e aplicação Online Boutique implantada em dois
+cenários (com e sem sidecar). As evidências coletadas encontram‑se nos espaços
+reservados e em formato completo no diretório \texttt{docs/evidences} do
+repositório oficial.
+
+\end{document}
