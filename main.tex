@@ -26,7 +26,7 @@
 %----------------------------------------------------------
 
 \journalname{Universidade de Fortaleza (Unifor) - Pós-Graduação em Informática Aplicada}
-\title{Relatório de Laboratório 2025.S1-E1.01}
+\title{Relatório de Laboratório 2025.S1-E1.02}
 
 %----------------------------------------------------------
 % AUTHORS, AFFILIATIONS AND PROFESSOR
@@ -50,7 +50,7 @@
 
 \institution{Universidade de Fortaleza (Unifor)}
 \footinfo{Disciplina: M-907 - Sistemas Distribuídos}
-\theday{06 de maio de 2025}
+\theday{20 de maio de 2025}
 \leadauthor{Luz Jr., J.A.; Iraheta, J.L.C.; and Neto, P.J.}
 \course{Creative Commons CC BY 4.0}
 
@@ -59,15 +59,14 @@
 %----------------------------------------------------------
 
 \begin{abstract}    
-Este relatório descreve a execução da \textbf{Primeira Entrega Parcial} do trabalho
-prático proposto no Laboratório de Sistemas Distribuídos, cujo objetivo é
-provisionar um cluster Kubernetes local, instalar o service‑mesh Istio e
-implantar a aplicação de micro‑serviços \emph{Online Boutique}.
+Este relatório de Entrega Parcial 2 descreve a análise de desempenho da aplicação \textit{Online Boutique} executada nos ambientes sem Istio (porta 32390) e com Istio (porta 31258), utilizando o Locust para simulação de carga com 100, 500 e 1000 usuários simultâneos. 
+Foram coletadas métricas de latência média, latência mediana, latência máxima, throughput (req/s) e taxa de erros. Os resultados mostram que, em carga leve, o cenário sem Istio alcança maiores vazões e menores latências médias, mas sofre falhas sob estresse extremo. 
+Já o cenário com Istio apresenta um overhead médio de até 18\% na latência, porém mantém robustez operacional sem ocorrência de erros e reduz picos de latência extrema em até 41\%. Com base nesses achados, são recomendados ajustes no escalonamento automático (HPA), tuning das configurações do Envoy, testes de soak prolongados e adoção de workload aberto para maior fidelidade à operação real.
 \end{abstract}
 
 %----------------------------------------------------------
 
-\keywords{Relatório de laboratório, Sistemas distribuídos, Kubernetes, Istio, Docker}
+\keywords{Sistemas distribuídos, Testes de carga, Kubernetes, Istio, Docker, Locust}
 
 %----------------------------------------------------------
 
@@ -97,9 +96,17 @@ implantar a aplicação de micro‑serviços \emph{Online Boutique}.
     \item \textbf{\textit{Implantação com Istio:}} habilitem a injeção automática de sidecars do Istio para um novo namespace (e.g., \texttt{online-boutique-istio}) e implantar a aplicação novamente neste namespace. Verifiquem se os sidecars foram injetados (\texttt{kubectl get pods -n -o wide} deve mostrar 2/2 containers por pod) e se a aplicação continua acessível.
 \end{itemize}
 
+\subsection{Tarefa 3 - Teste de Desempenho}
+\begin{itemize}
+    \item Configurem a ferramenta de geração de carga escolhida(Locust ou k6). Criem um script de teste que simule a interação de usuários com a loja online (e.g., navegar por produtos, adicionar ao carrinho, finalizar compra). Dica: a aplicação Online Boutique já vem com um script para realizar testes de carga com o Locust.
+    \item Teste sem Istio: executem o teste de carga contra a versão da aplicação sem os sidecars do Istio (implantação base). Coletem métricas como latência média/percentil 95/99 e vazão (requisições por segundo).
+    \item Teste com Istio: executem o mesmo teste de carga, com a mesma intensidade, contra a versão da aplicação com os sidecars do Istio (implantação com Istio). Coletem as mesmas métricas.
+    \item Análise de overhead: comparem os resultados dos dois testes. Analisem e quantifiquem o overhead (diferença) de desempenho (latência e/ou vazão) introduzido pelo Istio. Discutam possíveis causas para o overhead observado.
+\end{itemize}
+
 \subsection{Entregáveis:}
-\begin{enumerate}
-    \item Relatório Preliminar (2-3 páginas) \textit{[este]} incluindo:
+\textbf{Entrega Parcial 1 - Foco: Tarefas 1 e 2.} 
+    Relatório Preliminar (2-3 páginas) incluindo:
     \begin{enumerate}
         \item Formação da equipe e link para o repositório Git criado.
         \item Evidência do sucesso (e.g., screenshots, logs) na instalação e configuração do ambiente Kubernetes local (incluir versão, recursos alocados).
@@ -107,8 +114,16 @@ implantar a aplicação de micro‑serviços \emph{Online Boutique}.
         \item Evidência do sucesso (e.g., screenshots, logs) na implantação da aplicação Online Boutique nos dois cenários (sem e com injeção do sidecar Istio).
         \item Repositório Git atualizado com a estrutura inicial e quaisquer scripts/manifestos básicos utilizados.
     \end{enumerate}
-\end{enumerate}
-
+    
+\textbf{Entrega Parcial 2 - Teste de Desempenho e Análise de Overhead. Foco: Tarefa 3.} 
+    \begin{itemize}
+        \item Uma seção atualizada do relatório descrevendo:
+        \item Metodologia do teste de desempenho (ferramenta escolhida, script de teste, intensidade da carga, duração).
+        \item Resultados dos testes de desempenho (tabelas/gráficos comparando latência e vazão com e sem Istio).
+        \item Análise preliminar do overhead de desempenho introduzido pelo Istio.
+        \item Repositório Git atualizado contendo os scripts de teste de carga utilizados e os manifestos relevantes da aplicação (se modificados).
+    \end{itemize}
+        
 %----------------------------------------------------------
 
 \section{Repositório Git}
@@ -129,7 +144,7 @@ implantar a aplicação de micro‑serviços \emph{Online Boutique}.
 \end{description}
 
 % -----------------------------------------------------------------------------
-\section{Passo a Passo da Instalação}
+\section{Preparação - Instalações}
 \label{sec:passoapasso}
 Os comandos abaixo foram executados sequencialmente em shell \texttt{bash}. Cada
 etapa inclui uma breve explicação e um espaço reservado para evidência (log ou
@@ -280,6 +295,30 @@ kubectl apply -f microservices-demo/release/kubernetes-manifests.yaml -n boutiqu
 \end{figure}
 \end{enumerate}
 
+\subsection{Instalação do Locust}
+Para garantir testes padronizados, instalamos o Locust localmente:
+\begin{enumerate}
+  \item Criamos e ativamos o ambiente virtual Python:
+    \begin{verbatim}
+    python3 -m venv .venv
+    source .venv/bin/activate
+    \end{verbatim}
+  \item Instalamos o Locust:
+    \begin{verbatim}
+    pip install locust
+    \end{verbatim}
+  \item Verificamos a instalação:
+    \begin{verbatim}
+    locust --version
+    \end{verbatim}
+\end{enumerate}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{figures/evidence-locust.png}
+    \caption{Evidência: Instalação do Locust}
+    \label{fig:locust}
+\end{figure}
 % -----------------------------------------------------------------------------
 \section{Problemas Encontrados e Soluções}
 \begin{itemize}[leftmargin=*]

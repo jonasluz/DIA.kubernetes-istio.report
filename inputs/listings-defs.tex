@@ -1,0 +1,31 @@
+\usepackage{listings}
+\usepackage{xcolor}
+
+% Definindo um estilo para shell/Python/etc
+\lstdefinestyle{shell}{
+  backgroundcolor=\color{gray!10},   % fundo cinza claro
+  frame=single,                      % moldura simples
+  rulecolor=\color{gray!50},         % cor da moldura
+  basicstyle=\ttfamily\small,        % monoespaço tamanho small
+  keywordstyle=\color{blue},         % keywords em azul
+  commentstyle=\color{green!50!black}, % comentários verde-escuro
+  breaklines=true,                   % quebra automática de linhas longas
+}
+
+% Definição de estilo para Python
+\lstdefinestyle{python}{
+  language=Python,                   % destaca sintaxe Python
+  backgroundcolor=\color{gray!10},   % fundo cinza claro
+  frame=single,                      % moldura ao redor
+  rulecolor=\color{gray!50},         % cor da moldura
+  basicstyle=\ttfamily\small,        % fonte monoespaço, tamanho small
+  keywordstyle=\color{blue},         % palavras-chave em azul
+  stringstyle=\color{orange!80!black},% strings em laranja
+  commentstyle=\color{green!50!black},% comentários em verde-escuro
+  numberstyle=\tiny\color{gray},     % numeração de linhas em cinza
+  numbers=left,                      % números à esquerda
+  stepnumber=1,                      % numera todas as linhas
+  numbersep=5pt,                     % distância dos números ao código
+  breaklines=true,                   % quebra linhas longas
+  showstringspaces=false             % não marca espaços em strings
+}
