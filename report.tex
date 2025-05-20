@@ -5,7 +5,13 @@
 % Prof. Nabor das Chagas Mendonça
 % -----------------------------------------------------------------------------
 \documentclass[12pt,a4paper]{report}
-\bibliographystyle{abntex2-alf}  
+%\bibliographystyle{abntex2-alf}
+\usepackage[
+  backend=biber,
+  style=abnt,      % estilo ABNT; troque por numeric, authoryear, etc.
+  citestyle=abnt   % ou chem-acs, numeric-comp, etc.
+]{biblatex}
+\addbibresource{bibliography.bib}
 
 % ---------------------------- Pacotes ----------------------------------------
 \usepackage[brazil]{babel} 
@@ -291,8 +297,11 @@ Para garantir testes padronizados, instalamos o Locust localmente:
 \chapter{Testes de Carga}
 
 \section{Passo a Passo da Realização dos Testes}
+Para a realização dos testes, adotou-se a ferramenta \textbf{Locust}~\cite{locust2025, locust_github}.
+O \textit{script} de testes \texttt{locustfile.py} consta da Listagem \ref{lst:locust}.
 A seguir, os comandos e configurações para rodar cada perfil de carga:
-\begin{itemize}
+
+\begin{enumerate}
   \item Colocar o \texttt{locustfile.py} no diretório \texttt{/load-tests/locustfiles}
   \item Rodar o comando \textbf{locust}, o que ativa a interface web da ferramenta Locust, através da qual foram configurados e executados os testes, considerando:
   \begin{enumerate}
@@ -301,13 +310,14 @@ A seguir, os comandos e configurações para rodar cada perfil de carga:
       \item Máximo de 1000 usuários, com crescimento de 50 usuários/s.
   \end{enumerate}
   \item Os mesmos testes foram executados para ambas as versões do Online Boutique -- com e sem Istio.
-\end{itemize}
+\end{enumerate}
 
-\section{Análise dos Resultados Obtidos}
-Os resultados dos testes estão apresentados nas planilhas CSV disponíveis no repositório git do projeto e sumarizados nas Tabelas \ref{tab:sem-istio} e \ref{tab:com-istio}.
+\lstinputlisting[style=python, caption={Script Locust para testes de carga}, label={lst:locust}]{src/locustfile.py}
 
-\subsection{Resultados sem Istio}
-\begin{table}[h]
+\section{Resultados Obtidos}
+Os resultados dos testes estão apresentados nas planilhas CSV disponíveis no repositório git do projeto e sumarizados nas Tabelas \ref{tab:sem-istio} e \ref{tab:com-istio}. Adicionalmente, apresentam-se os diagramas de barras comparativos para cada conjunto de testes nas Figuras \ref{fig:barchart-100}, \ref{fig:barchart-500} e \ref{fig:barchart-1000}.
+
+\begin{table}[H]
 \centering
 \caption{Métricas – Sem Istio}\label{tab:sem-istio}
 \begin{tabular}{@{}lrrrrrrr@{}}
@@ -321,8 +331,7 @@ Usuários & Reqs & Falhas & Erro (\%) & Avg (ms) & Mediana (ms) & Máx (ms) & TP
 \end{tabular}
 \end{table}
 
-\subsection{Resultados com Istio}
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Métricas – Com Istio}\label{tab:com-istio}
 \begin{tabular}{@{}lrrrrrrr@{}}
@@ -336,8 +345,7 @@ Usuários & Reqs & Falhas & Erro (\%) & Avg (ms) & Mediana (ms) & Máx (ms) & TP
 \end{tabular}
 \end{table}
 
-\subsection{Análise Comparativa}
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Comparação Sem vs. Com Istio}\label{tab:comp}
 \begin{tabular}{@{}lllrr@{}}
@@ -362,35 +370,65 @@ Carga & Métrica    & Sem Istio    & Com Istio    & $\Delta$ (\%)    \\
 \end{tabular}
 \end{table}
 
-\section{Conclusões e Recomendações}
-O cenário sem Istio apresentou maior throughput e latências médias menores em carga leve, mas sofreu falhas sob stress. Já o Istio introduziu overhead médio de até 18\%, porém manteve robustez sem erros e reduziu tail latency extremo.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{figures/chart-locust_100.png}
+    \caption{Gráfico de Barras - Comparação do Tempo Médio de Resposta (Base $\times$ Istio) para 100 usuários / 10 u/s}
+    \label{fig:barchart-100}
+\end{figure}
 
-Recomendações:
-\begin{itemize}
-  \item Ajustar HPA considerando métricas do sidecar e da aplicação;
-  \item Tuning de Envoy para reduzir jitter;
-  \item Testes de soak prolongados e workload aberto para maior representatividade;
-  \item Documentar procedimentos e resultados em repositório versionado.
-\end{itemize}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{figures/chart-locust_500.png}
+    \caption{Gráfico de Barras - Comparação do Tempo Médio de Resposta (Base $\times$ Istio) para 500 usuários / 20 u/s}
+    \label{fig:barchart-500}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{figures/chart-locust_1000.png}
+    \caption{Gráfico de Barras - Comparação do Tempo Médio de Resposta (Base $\times$ Istio) para 1000 usuários / 50 u/s}
+    \label{fig:barchart-1000}
+\end{figure}
+
+\section{Análise dos Resultados}
+
+\subsection{Trade-off Latência × Robustez}
+Observamos que a introdução do Istio provoca um aumento consistente na mediana de latência (até $\approx$38\% em cargas altas), enquanto a latência média sofre um impacto mais contido ($\approx$6\% a 18\% nos cenários de 500 e 1000 usuários). Esse incremento é o ``preço'' da camada adicional de proxies (Envoy) e do mTLS, mas, em contrapartida, o Istio eliminou completamente as falhas (2\% de erros sem Istio vs. zero com Istio em 1000 usuários). Em sistemas onde robustez e segurança são prioritários, esse overhead de latência pode ser aceitável, especialmente se combinado a mecanismos de retry e timeouts bem calibrados.
+
+\subsection{Impacto na Throughput e Scalabilidade}
+A perda de throughput com Istio ficou na faixa de 3\% a 5\% em cargas maiores. Embora pareça pequena, em ambientes de ultrabaixa latência (e-commerce de alto volume, por exemplo), isso pode se traduzir em dezenas de requisições a menos por segundo. Por outro lado, essa penalidade cabe dentro de parâmetros normalmente tolerados por arquiteturas baseadas em sidecar. Para evitar surpresas, recomenda-se calibrar o Horizontal Pod Autoscaler considerando as métricas do Envoy (CPU e memória), não apenas do container da aplicação.
+
+\subsection{Tail Latency e Jitter}
+O Istio reduziu substancialmente os picos extremos de latência (max de 33 s sem Istio vs. 19 s com Istio no teste de 1000 usuários), mostrando sua capacidade de amortecer “caudas” de demora. No entanto, observou-se um aumento do espalhamento (jitter) na mediana dos tempos de resposta com baixa carga, o que pode impactar componentes sensíveis a latência determinística, como streaming de vídeo ou jogos em tempo real. Se essas cargas forem críticas, pode ser interessante explorar o tuning de buffers no Envoy e estratégias de QoS de rede para minimizar a variação.
+
+\subsection{Estabilidade em Longo Prazo}
+Embora nossos testes tenham sido pontuais (5 min), há indícios de que, sob o Istio, o sistema mantém maior estabilidade de erro ao lidar com picos temporários. Para comprovar isso, é imperativo executar \textit{soak tests} de 30–60 min a uma carga moderada (por ex., 500 usuários) em ambos os cenários e monitorar tendências de uso de memória e crescimento de filas. Isso revelará eventuais vazamentos de recurso no mesh ou no próprio microserviço.
+
+\subsection{Conclusões}
+%O ambiente com Istio exige máquinas (ou nós) com CPU e memória adicionais para suportar os sidecars e o plano de controle (Istiod). Isso deve ser considerado no dimensionamento de cluster e no orçamento de infraestrutura. Em muitos casos, o custo extra compensa pela visibilidade (telemetria integrada), políticas de segurança automáticas e facilidade de gerenciamento de versões, mas somente uma análise TCO (Total Cost of Ownership) completa confirmará essa relação.
+
+Em síntese, o Istio introduz um acréscimo de complexidade e sobrecarga mensurável, mas oferece ganho expressivo em resiliência, segurança e observabilidade. A decisão de adotá-lo deve basear-se no perfil de carga, criticidade de erro e requisitos de conformidade do seu sistema.
 
 % -----------------------------------------------------------------------------
-\chapter{Problemas Encontrados e Soluções}
-\begin{itemize}[leftmargin=*]
-  \item \textbf{Driver Podman rootless instável}: optou‑se pelo \emph{driver Docker}, que funcionou sem ajustes extras.
-  \item \textbf{Aviso de versão do kubectl}: resolvido instalando binário 1.32.
-  \item Outros problemas menores foram documentados no repositório.
-\end{itemize}
+% \chapter{Problemas Encontrados e Soluções}
+
+% \begin{itemize}[leftmargin=*]
+%   \item \textbf{Driver Podman rootless instável}: optou‑se pelo \emph{driver Docker}, que funcionou sem ajustes extras.
+%   \item \textbf{Aviso de versão do kubectl}: resolvido instalando binário 1.32.
+%   \item \textbf{Maior dificuldade de instalar o K6}: optou-se pelo uso do Locust no ambiente hospedeiro, por maior facilidade.
+% \end{itemize}
 
 % -----------------------------------------------------------------------------
 \chapter{Conclusão}
 A primeira entrega foi concluída com êxito: cluster Kubernetes funcional em
-Minikube, Istio instalado e aplicação Online Boutique implantada em dois
-cenários (com e sem sidecar). As evidências coletadas encontram‑se nos espaços
-reservados e em formato completo no diretório \texttt{docs/evidences} do
-repositório oficial.
+Minikube, Istio instalado e aplicação Online Boutique implantada em dois
+cenários (com e sem sidecar).
+
+A segunda entrega também foi efetivamente realizada através da execução dos testes de carga da aplicação OnLine Boutique com e sem o Istio instalado.
 
 % -----------------------------------------------------------------------------
-%\chapter{Bibliografia}
-\bibliography{bibliography}
+%\bibliography{bibliography}
+\printbibliography[title={Referências}]
 
 \end{document}
